@@ -12,8 +12,10 @@
         data: {
           columns: [
             yCounts 
-          ]
-        }
+          ],
+          type: 'bar'
+        },
+        bar: { width: {ratio: 1}}
       });
     });
 })();
