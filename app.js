@@ -217,6 +217,63 @@ app.get('/igMediaCounts', ensureAuthenticatedInstagram, function(req, res){
   });
 });
 
+var instaArr = [];
+
+/* method to get the number of likes per month */
+app.get('/likeCounts', ensureAuthenticatedInstagram, function(req, res) {
+  var query = models.User.where({ ig_id: req.user.ig_id });
+
+
+  var render = function() {
+
+    // calculate likes per month
+    monthlyLikes(instaArr, function (countArray) {
+      instaCounts = countsArray;
+    });
+
+    // finally, render page
+    res.render('likeCounts', {photos: instaArr});
+
+  }
+
+  query.findOne(function (err, user) {
+    if (err) return err; // user did not exist
+    if (user) { // user exists
+      // request most recent posts
+      Instagram.users.recent( {
+        user_id: req.user.ig_id,
+        access_token: user.ig_access_token,
+        complete: function(data, pagination) {
+
+          var getPage = function(currentURL, cb) {
+            request({
+              uri: currentURL,
+              method: "GET"
+            }, function (error, response, body) {
+              convertJSON = JSON.parse(body);
+              jsonData = convertJSON.data; 
+              console.log("prev: " + currentURL);
+              console.log("next: " + convertJSON.pagination.next_url);
+              
+              instaArr = instaArr.concat(jsonData);
+
+              if (currentURL != convertJSON.pagination.next_url) getPage(convertJSON.pagination.next_url, cb);
+              else cb();
+
+            });
+
+          }
+
+          instaArr.concat(data);
+
+          getPage(pagination.next_url, render);
+
+        }
+      });
+    }
+  });
+});
+
 app.get('/visualization', ensureAuthenticatedInstagram, function (req, res){
   res.render('visualization');
 }); 
