@@ -1,21 +1,35 @@
 (function() {
-  $.getJSON( '/igMediaCounts')
+  $.getJSON( '/likeCounts')
     .done(function( data ) {
-      var yCounts = data.users.map(function(item){
-        return item.counts.media;
-      });
+      //console.log(data);
+      var postCounts = [], likeCounts = [], dates = [];
       
-      yCounts.unshift('Media Count');
-
+      for (var i = 0; i < data.counts.length; i++) {
+        postCounts.push(data.counts[i].monthlyPosts);
+        likeCounts.push(data.counts[i].monthlyLikes);
+        dates.push("" + data.counts[i].month + " " + data.counts[i].year);
+      }
+      postCounts.unshift('Monthly Posts');
+      likeCounts.unshift('Monthly Likes');
+      dates.unshift('x');
       var chart = c3.generate({
         bindto: '#chart',
         data: {
+          x: 'x',
           columns: [
-            yCounts 
+            postCounts, likeCounts, dates
           ],
           type: 'bar'
         },
-        bar: { width: {ratio: 1}}
-      });
+        axis: {
+          x: {
+            type: 'category'
+          }
+        },
+        subchart: {
+          show: true
+        },
+        bar: { width: {ratio: 0.75}}
+      }); 
     });
 })();

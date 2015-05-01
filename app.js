@@ -13,6 +13,7 @@ var mongoose = require('mongoose');
 var Facebook = require('fbgraph');
 var Instagram = require('instagram-node-lib');
 var async = require('async');
+var request = require('request');
 var app = express();
 
 //local dependencies
@@ -218,22 +219,16 @@ app.get('/igMediaCounts', ensureAuthenticatedInstagram, function(req, res){
 });
 
 var instaArr = [];
-
+var count = 0; 
 /* method to get the number of likes per month */
 app.get('/likeCounts', ensureAuthenticatedInstagram, function(req, res) {
   var query = models.User.where({ ig_id: req.user.ig_id });
 
-
   var render = function() {
-
-    // calculate likes per month
-    monthlyLikes(instaArr, function (countArray) {
-      instaCounts = countsArray;
-    });
-
-    // finally, render page
-    res.render('likeCounts', {photos: instaArr});
-
+    var results = getMonthlyLikes(instaArr);
+   // console.log(results);
+   // res.render('likeCounts', {photos: instaArr});
+    return res.json({counts: results});
   }
 
   query.findOne(function (err, user) {
@@ -243,8 +238,10 @@ app.get('/likeCounts', ensureAuthenticatedInstagram, function(req, res) {
       Instagram.users.recent( {
         user_id: req.user.ig_id,
         access_token: user.ig_access_token,
+        
         complete: function(data, pagination) {
-
+          
+          // Function: getPage()
           var getPage = function(currentURL, cb) {
             request({
               uri: currentURL,
@@ -252,28 +249,84 @@ app.get('/likeCounts', ensureAuthenticatedInstagram, function(req, res) {
             }, function (error, response, body) {
               convertJSON = JSON.parse(body);
               jsonData = convertJSON.data; 
-              console.log("prev: " + currentURL);
-              console.log("next: " + convertJSON.pagination.next_url);
               
-              instaArr = instaArr.concat(jsonData);
+              // Add new data
+              for (var i = 0; i < jsonData.length; i++) {
+                tempJSON = {};
+                tempJSON.url = jsonData[i].images.low_resolution.url;
+                tempJSON.createdTime = jsonData[i].created_time;
+                if (jsonData[i].likes != null) {
+                  tempJSON.numLikes = jsonData[i].likes.count;
+                  tempJSON.likers = jsonData[i].likes.data;
+                }
+                instaArr.unshift(tempJSON);
+              }
 
-              if (currentURL != convertJSON.pagination.next_url) getPage(convertJSON.pagination.next_url, cb);
+              // check if 
+              if (currentURL != convertJSON.pagination.next_url 
+                && convertJSON.pagination.next_url != null) {
+                getPage(convertJSON.pagination.next_url, cb);
+              }
               else cb();
-
             });
-
           }
-
-          instaArr.concat(data);
-
+          for (var i = 0; i < data.length; i++) {
+            tempJSON = {};
+            tempJSON.url = data[i].images.low_resolution.url;
+            tempJSON.createdTime = data[i].created_time;
+            if (data[i].likes != null) {
+              tempJSON.numLikes = data[i].likes.count;
+              tempJSON.likers = data[i].likes.data;
+            }
+            instaArr.unshift(tempJSON);
+          }
           getPage(pagination.next_url, render);
-
         }
       });
     }
   });
 });
 
+
+function getMonthlyLikes(arr) {
+  var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug",
+                "Sep", "Oct", "Nov", "Dec"];
+  var resultArray = [];
+  tempJSON = {};
+  var prev = null, current = null;
+  var monthlyPosts = 0, monthlyLikes = 0;
+  for (var i = 0; i < arr.length; i++) {
+    current = new Date(arr[i].createdTime * 1000);
+    
+    // month has not changed yet. Keep adding to posts and likes
+    if ((prev == null && current != null) || (current != null && 
+        prev.getMonth() == current.getMonth() && 
+        prev.getFullYear() == current.getFullYear())) {
+      monthlyPosts++;
+      monthlyLikes += arr[i].numLikes;
+      prev = current;
+    }
+
+    // month has changed. Need to push results to array
+    else {
+      if (current != null && prev != null) {
+        tempJSON.monthlyPosts = monthlyPosts;
+        tempJSON.monthlyLikes = monthlyLikes;
+        tempJSON.monthlyAverage = monthlyLikes * 1.0 / monthlyPosts;
+        tempJSON.month = months[prev.getMonth()];
+        tempJSON.year = prev.getFullYear();
+        resultArray.push(tempJSON);
+
+        // reset posts and number of likes
+        tempJSON = {};
+        monthlyPosts = 1;
+        monthlyLikes = arr[i].numLikes;
+        prev = current;
+      }
+    }
+  }
+  return resultArray;
+}
 app.get('/visualization', ensureAuthenticatedInstagram, function (req, res){
   res.render('visualization');
 }); 
