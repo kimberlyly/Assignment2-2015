@@ -77,7 +77,7 @@ d3.json('/igMediaCounts', function(error, data) {
     .on("mouseover", function(d) {
         var bar_width = parseInt($(this).attr("width"), 10);
         var x = parseInt($(this).attr("x"), 10) + 50;
-        var y = parseInt($(this).attr("y"), 10) + 15;
+        var y = parseInt($(this).attr("y"), 10) + 75;
         div.transition().duration(200).style("opacity", 1);
         div.html(d.full_name + "<br/>"
           + d.counts.media + " Photos" + "<br/>"
@@ -89,12 +89,11 @@ d3.json('/igMediaCounts', function(error, data) {
 
   // Sort
   d3.select("input").on("change", change);
-
   function change() {
 
     var x0 = scaleX.domain(data.users.sort(this.checked
       ? function(a, b) { return a.counts.media - b.counts.media; }
-      : function(a, b) { return d3.ascending(a.username, b.username); })
+      : function(a, b) { return b.counts.media - a.counts.media; })
       .map(function(d) { return d.username; }))
       .copy();
 
