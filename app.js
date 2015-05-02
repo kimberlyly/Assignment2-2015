@@ -390,7 +390,7 @@ function getMonthlyLikes(arr) {
 
 
 
-var sendData = false;
+/*var sendData = false;
 var fbLikesGraph = {};
 var food = [], music = [], education = [], tv = [], 
     sports = [], books = [], politics = [];
@@ -400,18 +400,15 @@ app.get('/fbLikes', ensureAuthenticated, function (req, res) {
   /*var categoryLikes = [];
   categoryLikes.push({name: "Friends", size: x});
   categoryLikes.push({name: "Total likes", size: y});
-
   var category = [];
   var category.push({name: "place", children: categoryLikes});
-
   var pageCategories = [];
   pageCategories.push({name: "Food", children: category});
-
   fbLikesGraph.children = pageCategories; */
 
 
 
-  var prev = null, current; 
+/*  var prev = null, current; 
   
   var getLikedPages = function(currentURL, callback) {
     graph.get(currentURL, function(err, data) {
@@ -468,7 +465,7 @@ app.get('/fbLikes', ensureAuthenticated, function (req, res) {
       /*graph.get('/' + id + '?fields=context.fields%28friends_who_like%29',
         function(err, data2) { */
 
-          totalLikes.push({name: "Total Likes", size: data1.likes});
+  /*        totalLikes.push({name: "Total Likes", size: data1.likes});
           //totalLikes.push({name: "Friends like", 
             //size: data2.context.friends_who_like.summary.total_count});
             element.children = totalLikes;
@@ -511,35 +508,47 @@ app.get('/fbLikes', ensureAuthenticated, function (req, res) {
       fbLikesGraph.children[4].children.forEach(getTotalLikes); 
       fbLikesGraph.children[5].children.forEach(getTotalLikes); 
       fbLikesGraph.children[6].children.forEach(getTotalLikes);
+
+      console.log(fbLikesGraph);
 /*      async.series([fbLikesGraph.children[1].children.forEach(getTotalLikes),
       fbLikesGraph.children[1].children.forEach(getFriendLikes)]);
-
       async.series([fbLikesGraph.children[2].children.forEach(getTotalLikes),
       fbLikesGraph.children[2].children.forEach(getFriendLikes)]);
-
       async.series([fbLikesGraph.children[3].children.forEach(getTotalLikes),
       fbLikesGraph.children[3].children.forEach(getFriendLikes)]);
-
       async.series([fbLikesGraph.children[4].children.forEach(getTotalLikes),
       fbLikesGraph.children[4].children.forEach(getFriendLikes)]);
-
       async.series([fbLikesGraph.children[5].children.forEach(getTotalLikes),
       fbLikesGraph.children[5].children.forEach(getFriendLikes)]);
-
       async.series([fbLikesGraph.children[6].children.forEach(getTotalLikes),
       fbLikesGraph.children[6].children.forEach(getFriendLikes), sendJSON]); */
       //console.log(JSON.stringify(fbLikesGraph, null, 2));
       //res.json(fbLikesGraph);
-      console.log(JSON.stringify(fbLikesGraph, null, 2));
-  }
+     // console.log(JSON.stringify(fbLikesGraph, null, 2));
+  //   sendJSON();
+ // }
 
-  var sendJSON = function() {
+ /* var sendJSON = function() {
     console.log("hello!! I'm here!!! Just loading... I think. ");
       return res.json({result: fbLikesGraph});
   }
 
   getLikedPages('/me/likes?limit=1000', done);
 
+}); */
+
+var wordArray = [];
+app.get('/wordCloud', ensureAuthenticated, function (req, res) {
+  graph.get('/me?fields=statuses.limit(1000){message}', function (err, data) {
+    for (var i = 0; i < data.statuses.data.length; i++) {
+
+      console.log(data.statuses.data);
+      console.log(data.statuses.data[i].message);
+      wordArray.concat(data.statuses.data[i].message.split(" "));
+    }
+
+    res.render('d3visualization');
+  });
 });
 
 app.get('/visualization', ensureAuthenticated, function (req, res){
