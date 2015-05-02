@@ -1,9 +1,25 @@
-<p>ID: {{user.id}}</p>
-<p>Name: {{user.name}}</p>
-<p>Instagram ID:{{user.ig_id}}</p>
+<!doctype html>
+<html>
+<head>
+  <title>Assignment 2</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<a href="/c3visualization">view C3 visualization</a>
-<br/>
-<a href="/visualization">view D3 visualization</a>
+  <link rel="stylesheet" type="text/css" href="css/bootstrap.css">
+  <link rel="stylesheet" type="text/css" href="css/bootstrap-theme.css">
+  <link rel="stylesheet" type="text/css" href="css/bootstrap-social.css">
+  <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.96.1/css/materialize.min.css">
+  <link rel="stylesheet" type="text/css" href="css/stylesheet.css">
+</head>
 
-
+<body> 
+  <div class="le_box">
+	<p>Welcome {{user.name}} 	<br/>
+	Instagram ID:{{user.ig_id}} <br/><br/>
+	<a href="/c3visualization">view C3 visualization</a><br/>
+	<a href="/visualization">view D3 visualization</a>
+	</p>
+  </div>
+</body>
+</html>

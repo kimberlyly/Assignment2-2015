@@ -1,0 +1,62 @@
+body {
+  background-color: #DAEDFF;
+}
+
+.ig_container {
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 100px;
+}
+.fb_container {
+
+}
+
+h2 {
+  margin-left: 45px;
+}
+
+.le_box { 
+  border-radius: 5px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 30px;
+  background-color: #26A59A;
+  width: 300px;
+  padding: 25px;
+
+}
+.le_box p {
+  margin: 5%;
+  color: white;
+  text-align: center;
+  text-transform: uppercase;
+}
+.le_box a{
+  color: white;
+  text-align: center;
+}
+.le_box a:hover{
+  color: black;
+}
+
+div.tooltip {
+  position: absolute;
+  width: 165px;
+  height: 70px;
+  padding: 2px;
+  font: 12px sans-serif;
+  background: lightsteelblue;
+  border: 0px;
+  pointer-events: none;
+  top: 0;
+  left: 0;
+  padding-top: 7.5px;
+  padding-bottom: 5px;
+  padding-left: 15px;
+  padding-right: 15px;
+}
+
+.sort {
+  margin-left: 45px;
+  margin-top: -10px;
+}
