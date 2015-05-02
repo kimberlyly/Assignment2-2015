@@ -1,0 +1,26 @@
+{
+    "name": "FB",
+    "children": 
+    [
+        {
+            "name": "Books",
+              "children": 
+              [
+                  {
+                      "name": "Harry",
+                       "children": 
+                       [
+                          {
+                              "name": "Friends",
+                              "size": 100
+                          },
+                          {
+                                "name": "total",
+                                "size": 10000
+                          }
+                      ]
+                  }
+              ]
+          }
+      ]
+  }

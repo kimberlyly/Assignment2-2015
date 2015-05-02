@@ -2,6 +2,7 @@
 var express = require('express');
 var passport = require('passport');
 var InstagramStrategy = require('passport-instagram').Strategy;
+var FacebookStrategy = require ('passport-facebook').Strategy;
 var http = require('http');
 var path = require('path');
 var handlebars = require('express-handlebars');
@@ -10,7 +11,7 @@ var session = require('express-session');
 var cookieParser = require('cookie-parser');
 var dotenv = require('dotenv');
 var mongoose = require('mongoose');
-var Facebook = require('fbgraph');
+var graph = require('fbgraph');
 var Instagram = require('instagram-node-lib');
 var async = require('async');
 var request = require('request');
@@ -26,6 +27,11 @@ var INSTAGRAM_CLIENT_SECRET = process.env.INSTAGRAM_CLIENT_SECRET;
 var INSTAGRAM_CALLBACK_URL = process.env.INSTAGRAM_CALLBACK_URL;
 Instagram.set('client_id', INSTAGRAM_CLIENT_ID);
 Instagram.set('client_secret', INSTAGRAM_CLIENT_SECRET);
+
+var FACEBOOK_CLIENT_ID = process.env.FACEBOOK_CLIENT_ID;
+var FACEBOOK_CLIENT_SECRET = process.env.FACEBOOK_CLIENT_SECRET;
+var FACEBOOK_CALLBACK_URL = process.env.FACEBOOK_CALLBACK_URL;
+var FACEBOOK_ACCESS_TOKEN = "";
 
 //connect to database
 mongoose.connect(process.env.MONGODB_CONNECTION_URL);
@@ -49,7 +55,6 @@ passport.serializeUser(function(user, done) {
 passport.deserializeUser(function(obj, done) {
   done(null, obj);
 });
-
 
 // Use the InstagramStrategy within Passport.
 //   Strategies in Passport require a `verify` function, which accept
@@ -101,6 +106,52 @@ passport.use(new InstagramStrategy({
   }
 ));
 
+passport.use(new FacebookStrategy({
+  clientID: FACEBOOK_CLIENT_ID,
+  clientSecret: FACEBOOK_CLIENT_SECRET,
+  callbackURL: FACEBOOK_CALLBACK_URL
+  },
+  function(accessToken, refreshToken, profile, done) {
+    // asynchronous verification, for effect...
+   models.User.findOne({
+    "fb_id": profile.id
+   }, function(err, user) {
+      if (err) {
+        return done(err); 
+      }
+      
+      //didnt find a user
+      if (!user) {
+        newUser = new models.User({
+          name: profile.username, 
+          fb_id: profile.id,
+          fb_access_token: accessToken
+        });
+
+        newUser.save(function(err) {
+          if(err) {
+            console.log(err);
+          } else {
+            console.log('user: ' + newUser.name + " created.");
+          }
+          return done(null, newUser);
+        });
+      } else {
+        //update user here
+        user.fb_access_token = accessToken;
+        user.save();
+        process.nextTick(function () {
+          // To keep the example simple, the user's Instagram profile is returned to
+          // represent the logged-in user.  In a typical application, you would want
+          // to associate the Instagram account with a user record in your database,
+          // and return that user instead.
+          return done(null, user);
+        });
+      }
+   });
+  }
+));
+
 
 //Configures the Template engine
 app.engine('handlebars', handlebars({defaultLayout: 'layout'}));
@@ -139,6 +190,12 @@ function ensureAuthenticatedInstagram(req, res, next) {
   res.redirect('/login');
 }
 
+function ensureAuthenticatedFacebook(req, res, next) {
+  if (req.isAuthenticated() && !!req.user.fb_id) {
+    return next();
+  }
+  res.redirect('/login');
+}
 
 //routes
 app.get('/', function(req, res){
@@ -150,6 +207,7 @@ app.get('/login', function(req, res){
 });
 
 app.get('/account', ensureAuthenticated, function(req, res){
+  console.log(req.user);
   res.render('account', {user: req.user});
 });
 
@@ -242,7 +300,7 @@ app.get('/likeCounts', ensureAuthenticatedInstagram, function(req, res) {
         complete: function(data, pagination) {
           
           // Function: getPage()
-          var getPage = function(currentURL, cb) {
+          var getPage = function(currentURL, callback) {
             request({
               uri: currentURL,
               method: "GET"
@@ -265,9 +323,9 @@ app.get('/likeCounts', ensureAuthenticatedInstagram, function(req, res) {
               // check if 
               if (currentURL != convertJSON.pagination.next_url 
                 && convertJSON.pagination.next_url != null) {
-                getPage(convertJSON.pagination.next_url, cb);
+                getPage(convertJSON.pagination.next_url, callback);
               }
-              else cb();
+              else callback();
             });
           }
           for (var i = 0; i < data.length; i++) {
@@ -286,6 +344,7 @@ app.get('/likeCounts', ensureAuthenticatedInstagram, function(req, res) {
     }
   });
 });
+
 
 
 function getMonthlyLikes(arr) {
@@ -327,8 +386,164 @@ function getMonthlyLikes(arr) {
   }
   return resultArray;
 }
-app.get('/visualization', ensureAuthenticatedInstagram, function (req, res){
-  res.render('visualization');
+
+
+
+
+var sendData = false;
+var fbLikesGraph = {};
+var food = [], music = [], education = [], tv = [], 
+    sports = [], books = [], politics = [];
+app.get('/fbLikes', ensureAuthenticated, function (req, res) {
+  fbLikesGraph.name = "Facebook Likes";
+
+  /*var categoryLikes = [];
+  categoryLikes.push({name: "Friends", size: x});
+  categoryLikes.push({name: "Total likes", size: y});
+
+  var category = [];
+  var category.push({name: "place", children: categoryLikes});
+
+  var pageCategories = [];
+  pageCategories.push({name: "Food", children: category});
+
+  fbLikesGraph.children = pageCategories; */
+
+
+
+  var prev = null, current; 
+  
+  var getLikedPages = function(currentURL, callback) {
+    graph.get(currentURL, function(err, data) {
+    for (var i = 0; i < data.data.length; i++) {
+      category = data.data[i].category;
+      dataName = data.data[i].name;
+      dataID = data.data[i].id;
+
+      if (category != null) {
+        if (category == 'Book' || category == 'Author' || category == 'Book Series') {
+            books.push( {category: category, name: dataName, id: dataID });
+          }
+          else if (category == 'Song' || category == 'Album' || category == 'Musician/band') {
+            music.push( {category: category, name: dataName, id: dataID });
+          }
+          else if (category == 'School' || category == 'University' || category == 'Education') {
+            education.push( {category: category, name: dataName, id: dataID });
+          }
+          else if (category == 'Movie' || category == 'TV show') {
+            tv.push( {category: category, name: dataName, id: dataID });
+          }
+          else if (category == 'Sports League' || category == 'Professional Sports Team' || 
+                  category == 'Amateur Sports Team' || category == 'School Sports Team') {
+            sports.push( {category: category, name: dataName, id: dataID });
+          }
+          else if (category == 'Restaurant/cafe' || category == 'Food/beverages') {
+            food.push( {name: dataName, id: dataID });
+          }
+          else if (category == 'Politician' || category == 'Government Official' ||
+                  category == 'Political Party' || category == 'Cause') {
+            politics.push( {category: category, name: dataName, id: dataID });
+          }
+        }
+      }
+
+      if (data.paging && data.paging.next) {
+        getLikedPages(data.paging.next, done);
+      } else {
+        callback();
+      }
+
+      //console.log(fbLikesGraph);
+      //callback(getFriendLikes);
+    });
+  };
+
+  var getTotalLikes = function(element, index, array) {
+
+    id = element.id;
+
+    graph.get('/' + id, function(err, data1) {
+
+      totalLikes = [];
+      /*graph.get('/' + id + '?fields=context.fields%28friends_who_like%29',
+        function(err, data2) { */
+
+          totalLikes.push({name: "Total Likes", size: data1.likes});
+          //totalLikes.push({name: "Friends like", 
+            //size: data2.context.friends_who_like.summary.total_count});
+            element.children = totalLikes;
+            totalLikes = [];
+            //console.log(element);
+        //});
+    });
+  };
+
+  var getFriendLikes = function(element, index, array) {
+    id = element.id;
+    graph.get('/' + id + '?fields=context.fields%28friends_who_like%29', 
+      function(err, data) {
+        if (element.children) {
+          element.children.push({name: "Friends Like", size: data.context.friends_who_like.summary.total_count});
+        }
+        console.log(element.children);
+        //fbLikesGraph[i][j].friends = data.context.friends_who_like.summary.total_count;
+        //return data.context.friends_who_like.summary.total_count;
+      });
+  };
+
+  var done = function() {
+      pageCategories = [];
+      pageCategories.push({name: "Books", children: books});
+      pageCategories.push({name: "Music", children: music});
+      pageCategories.push({name: "Education", children: education});
+      pageCategories.push({name: "Movies", children: tv});
+      pageCategories.push({name: "Sports", children: sports});
+      pageCategories.push({name: "Food", children: food});
+      pageCategories.push({name: "Politics", children: politics});
+
+      fbLikesGraph.children = pageCategories;
+
+
+      fbLikesGraph.children[0].children.forEach(getTotalLikes); 
+      fbLikesGraph.children[1].children.forEach(getTotalLikes);
+      fbLikesGraph.children[2].children.forEach(getTotalLikes); 
+      fbLikesGraph.children[3].children.forEach(getTotalLikes); 
+      fbLikesGraph.children[4].children.forEach(getTotalLikes); 
+      fbLikesGraph.children[5].children.forEach(getTotalLikes); 
+      fbLikesGraph.children[6].children.forEach(getTotalLikes);
+/*      async.series([fbLikesGraph.children[1].children.forEach(getTotalLikes),
+      fbLikesGraph.children[1].children.forEach(getFriendLikes)]);
+
+      async.series([fbLikesGraph.children[2].children.forEach(getTotalLikes),
+      fbLikesGraph.children[2].children.forEach(getFriendLikes)]);
+
+      async.series([fbLikesGraph.children[3].children.forEach(getTotalLikes),
+      fbLikesGraph.children[3].children.forEach(getFriendLikes)]);
+
+      async.series([fbLikesGraph.children[4].children.forEach(getTotalLikes),
+      fbLikesGraph.children[4].children.forEach(getFriendLikes)]);
+
+      async.series([fbLikesGraph.children[5].children.forEach(getTotalLikes),
+      fbLikesGraph.children[5].children.forEach(getFriendLikes)]);
+
+      async.series([fbLikesGraph.children[6].children.forEach(getTotalLikes),
+      fbLikesGraph.children[6].children.forEach(getFriendLikes), sendJSON]); */
+      //console.log(JSON.stringify(fbLikesGraph, null, 2));
+      //res.json(fbLikesGraph);
+      console.log(JSON.stringify(fbLikesGraph, null, 2));
+  }
+
+  var sendJSON = function() {
+    console.log("hello!! I'm here!!! Just loading... I think. ");
+      return res.json({result: fbLikesGraph});
+  }
+
+  getLikedPages('/me/likes?limit=1000', done);
+
+});
+
+app.get('/visualization', ensureAuthenticated, function (req, res){
+  res.render('d3visualization');
 }); 
 
 
@@ -346,6 +561,14 @@ app.get('/auth/instagram',
 app.get('/auth/instagram/callback', 
   passport.authenticate('instagram', { failureRedirect: '/login'}),
   function(req, res) {
+    res.redirect('/auth/facebook');
+  });
+
+app.get('/auth/facebook', passport.authenticate('facebook', { scope: ['user_about_me', 'user_birthday', 'user_friends', 'user_photos', 'user_relationships', 'user_likes', 'user_posts', 'user_status', 'read_stream'] }));
+app.get('/auth/facebook/callback', 
+  passport.authenticate('facebook', { failureRedirect: '/login'}),
+  function(req, res) {
+    graph.setAccessToken(req.user.fb_access_token);
     res.redirect('/account');
   });
 
